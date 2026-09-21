@@ -1,0 +1,19 @@
+[project]
+name = "ticket-assistant"
+version = "0.1.0"
+description = "A support-ticket assistant built on Amazon Bedrock's Converse API."
+requires-python = ">=3.11"
+dependencies = [
+    "langchain-core>=1.6",
+    "langchain-aws>=1.7",
+    "python-dotenv>=1.0",
+    "langgraph>=1.2",
+    "langchain-text-splitters>=1.0",
+]
+
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools.packages.find]
+include = ["ticket_assistant*"]
