@@ -31,22 +31,20 @@ def load_document_chunks() -> list[Document]:
 
 
 class ScoreThresholdRetriever(BaseRetriever):
-
     store: InMemoryVectorStore
     k: int = 4
-    threshold: float = 0.40
+    threshold: float = 0.25
 
     model_config = {"arbitrary_types_allowed": True}
 
-    def _get_relevant_documents(self, query: str, *, run_manager: CallbackManagerForRetrieverRun) -> list[Document]:
-
+    def _get_relevant_documents(self, query: str, *, run_manager) -> list[Document]:
         hits = self.store.similarity_search_with_score(query, k=self.k)
-
+    
         return [doc for doc, score in hits if score >= self.threshold]
 
 
 @lru_cache(maxsize=1)
-def build_local_retriever(k: int = 4, threshold: float = 0.4) -> BaseRetriever:
+def build_local_retriever(k: int = 4, threshold: float = 0.25) -> BaseRetriever:
 
     chunks = load_document_chunks()
 

@@ -32,4 +32,36 @@ def build_graph():
     
     return graph.compile()
 
+def run_repl():
+    app = build_graph()
+    messages = []
+
+    print("RAG Assistant")
+    print("Type 'quit' to exit.")
+
+    while True:
+        question = input("\nYou: ").strip()
+        if question.lower() == "quit":
+            break
+        if not question:
+            continue
+        messages.append(HumanMessage(content=question))
+        result = app.invoke(
+            {
+                "messages": messages,
+                "question": question,
+                "query": question,
+                "documents": [],
+                "attempts": 0,
+                "supported": False,
+                "answer": "",
+            }
+        )
+        answer = result["answer"]
+        messages.append(AIMessage(content=answer))
+        print(f"\nAssistant: {answer}")
+
 app = build_graph()
+
+if __name__ == "__main__":
+    run_repl()

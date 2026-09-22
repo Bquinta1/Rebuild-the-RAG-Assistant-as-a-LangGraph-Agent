@@ -6,26 +6,18 @@ from .retriever import get_retriever
 from .state import AssistantState
 
 def retrieve_node(state: AssistantState) -> dict:
-    """ Retrieve documents using the current search query. """
-
+    """Retrieve documents using the current search query."""
     retriever = get_retriever()
-
-    query = state["query"]
-    if state["attempts"] == 0 and len(state["messages"]) > 1:
-        prior = state["messages"][-2].content
-        query = f"{prior} {query}"
-
-    documents = retriever.invoke(query)
-
+    documents = retriever.invoke(state["query"])
+    
     return {
         "documents": documents,
         "attempts": state["attempts"] + 1,
     }
 
 
-def grade_node(state: AssistantState) -> dict:
-    """ Determine whether the retrieved documents support the question."""
 
+def grade_node(state: AssistantState) -> dict:
     if not state["documents"]:
         return {"supported": False}
 
@@ -35,42 +27,41 @@ def grade_node(state: AssistantState) -> dict:
         for document in state["documents"]
     )
 
-    model = ChatBedrockConverse(
-        model_id=BEDROCK_MODEL_ID,
-        region_name=AWS_REGION
-    )
-
+    model = ChatBedrockConverse(model_id=BEDROCK_MODEL_ID, region_name=AWS_REGION, temperature=0)
+    
     prompt = f"""
-        You are checking whether retrieved documents contain enough information
-        to answer a user's question.
+    You are checking whether retrieved documents contain enough information
+    to give the user a useful, accurate answer — even a partial one.
 
-        Question: {state["question"]}
-        Retrieved documents: {context}
+    Question: {state["question"]}
+    Retrieved documents: {context}
 
-        Decide whether the retrieved documents directly support an answer.
-        Respond with exactly one word: YES or NO
-            """
+    If the documents let you answer at least part of the question accurately,
+    respond YES. Only respond NO if the documents are unrelated to the
+    question or contain no usable information.
+
+    Respond with exactly one word: YES or NO
+        """
 
     response = model.invoke([HumanMessage(content=prompt)])
 
     supported = response.content.strip().upper() == "YES"
-
-    return {
-        "supported": supported
-    }
+    return {"supported": supported}
 
 
 def retry_node(state: AssistantState) -> dict:
-    """ Create a broader query for the second retrieval attempt."""
-
+    """Broaden the query for the second attempt: fixed context terms,
+    plus the prior user turn if this looks like a follow-up."""
+    prior_user_turns = [
+        m.content for m in state["messages"][:-1] if isinstance(m, HumanMessage)
+    ]
+    context = f" {prior_user_turns[-1]}" if prior_user_turns else ""
     return {
-        "query": f'{state["question"]} policy requirements details'
+        "query": f'{state["question"]}{context} policy requirements details'
     }
 
 
 def answer_node(state: AssistantState) -> dict:
-    """ Generate an answer using the retrieved documents."""
-
     context = "\n\n".join(
         f"Source: {document.metadata.get('source', 'unknown')}\n"
         f"{document.page_content}"
@@ -79,7 +70,8 @@ def answer_node(state: AssistantState) -> dict:
 
     model = ChatBedrockConverse(
         model_id=BEDROCK_MODEL_ID,
-        region_name=AWS_REGION
+        region_name=AWS_REGION,
+        temperature=0
     )
     
     system_prompt = """
